@@ -117,7 +117,7 @@ def webhook():
 
                 text = messaging["message"].get("text", "")
 
-                reply = ask_ai(text)
+               reply = ask_ai(sender_id, text)
 
                 send_message(
                     sender_id,
