@@ -1,26 +1,26 @@
 from flask import Flask, request
+from openai import OpenAI
 import requests
-import json
-from datetime import datetime
+import os
 
 app = Flask(__name__)
 
 VERIFY_TOKEN = "irakli123"
 
-PAGE_ACCESS_TOKEN = "EAAWvGRv9Q9cBSwg5mBLpBgZBmortM1ZAHQYKvkzljb462xMgXQDIhCaYc4ciTz9uY9kulv3MaQeUenGFQpNd2LTQTdeO2ah5yxLmBcoJS2ULlsw0uIUZBVhNDWmJKqthhJ2IYogY3HJaZCPNvznOO9HVu2cImVzVsk5GziMW7mBpEX2cc08bahB3quVDUaiBiU6oIPqAAGuCpBc1GJCiXwZDZD"
+PAGE_ACCESS_TOKEN = os.getenv("EAAWvGRv9Q9cBSwg5mBLpBgZBmortM1ZAHQYKvkzljb462xMgXQDIhCaYc4ciTz9uY9kulv3MaQeUenGFQpNd2LTQTdeO2ah5yxLmBcoJS2ULlsw0uIUZBVhNDWmJKqthhJ2IYogY3HJaZCPNvznOO9HVu2cImVzVsk5GziMW7mBpEX2cc08bahB3quVDUaiBiU6oIPqAAGuCpBc1GJCiXwZDZD
+")
+TELEGRAM_BOT_TOKEN = os.getenv("8800332184:AAGBfBfxje1lhiIWsQp5dhlof6XfPteCg2g")
+OPENAI_API_KEY = os.getenv("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")
 
-TELEGRAM_BOT_TOKEN = "8800332184:AAGBfBfxje1lhiIWsQp5dhlof6XfPteCg2g"
-TELEGRAM_CHAT_ID = "7937718581"
+client = OpenAI(api_key=OPENAI_API_KEY)
 
-user_state = {}
+CHAT_ID = "7937718581"
 
 def send_telegram(text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-
     requests.post(
-        url,
+        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
         json={
-            "chat_id": TELEGRAM_CHAT_ID,
+            "chat_id": CHAT_ID,
             "text": text
         }
     )
@@ -29,24 +29,64 @@ def send_message(recipient_id, text):
 
     url = f"https://graph.facebook.com/v23.0/me/messages"
 
-    params = {
-        "access_token": PAGE_ACCESS_TOKEN
-    }
-
-    payload = {
-        "recipient": {
-            "id": recipient_id
+    requests.post(
+        url,
+        params={
+            "access_token": PAGE_ACCESS_TOKEN
         },
-        "message": {
-            "text": text
+        json={
+            "recipient": {"id": recipient_id},
+            "message": {"text": text[:2000]}
         }
-    }
+    )
 
-    requests.post(url, params=params, json=payload)
+def ask_ai(message):
+
+    response = client.chat.completions.create(
+        model="gpt-5",
+        messages=[
+            {
+                "role": "system",
+                "content": """
+შენ ხარ პროფესიონალი გამყიდველი.
+
+ყოველთვის უპასუხე ქართულად.
+
+პროდუქტი:
+სარბენი ბილიკი
+
+ფასები:
+280 ლარი
+380 ლარი (უფრო ძლიერი ძრავით)
+
+მიწოდება:
+30 ლარი
+
+თუ კლიენტი ყიდვას აპირებს,
+აუღე:
+
+სახელი
+ტელეფონი
+მისამართი
+
+როცა შეკვეთა დასრულდება,
+ბოლოში დაწერე:
+
+ORDER_COMPLETE
+"""
+            },
+            {
+                "role": "user",
+                "content": message
+            }
+        ]
+    )
+
+    return response.choices[0].message.content
 
 @app.route("/")
 def home():
-    return "FB BOT ONLINE ✅"
+    return "AI BOT ONLINE"
 
 @app.route("/webhook", methods=["GET"])
 def verify():
@@ -71,154 +111,24 @@ def webhook():
 
             for messaging in entry.get("messaging", []):
 
-                sender_id = messaging["sender"]["id"]
-
                 if "message" not in messaging:
                     continue
 
+                sender_id = messaging["sender"]["id"]
+
                 text = messaging["message"].get("text", "")
-                msg = text.lower()
 
-                if sender_id not in user_state:
-                    user_state[sender_id] = {}
+                reply = ask_ai(text)
 
-                user = user_state[sender_id]
+                send_message(
+                    sender_id,
+                    reply.replace("ORDER_COMPLETE", "")
+                )
 
-                treadmill_words = [
-                    "სარბენი",
-                    "ბილიკი",
-                    "sarbeni",
-                    "biliki",
-                    "treadmill",
-                    "беговая",
-                    "дорожка",
-                    "ფასი",
-                    "fasi"
-                ]
+                if "ORDER_COMPLETE" in reply:
 
-                if any(word in msg for word in treadmill_words):
-
-                    user["step"] = "model"
-
-                    send_message(
-                        sender_id,
-                        "✅ გვაქვს 2 მოდელი\n\n"
-                        "1️⃣ სტანდარტული - 280 ლარი\n\n"
-                        "2️⃣ პრემიუმ - 380 ლარი\n"
-                        "(ძლიერი ძრავით)\n\n"
-                        "🚚 მიწოდება - 30 ლარი\n\n"
-                        "მომწერეთ:\n280 ან 380"
-                    )
-
-                elif user.get("step") == "model":
-
-                    if "280" in msg:
-                        user["product"] = "სარბენი ბილიკი 280"
-                    elif "380" in msg:
-                        user["product"] = "სარბენი ბილიკი 380"
-                    else:
-                        send_message(
-                            sender_id,
-                            "გთხოვთ მიუთითოთ 280 ან 380"
-                        )
-                        continue
-
-                    user["step"] = "name"
-
-                    send_message(
-                        sender_id,
-                        "მიუთითეთ სახელი და გვარი"
-                    )
-
-                elif user.get("step") == "name":
-
-                    user["name"] = text
-                    user["step"] = "phone"
-
-                    send_message(
-                        sender_id,
-                        "მიუთითეთ ტელეფონის ნომერი"
-                    )
-
-                elif user.get("step") == "phone":
-
-                    user["phone"] = text
-                    user["step"] = "address"
-
-                    send_message(
-                        sender_id,
-                        "მიუთითეთ მისამართი"
-                    )
-
-                elif user.get("step") == "address":
-
-                    user["address"] = text
-
-                    order = {
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        "product": user["product"],
-                        "name": user["name"],
-                        "phone": user["phone"],
-                        "address": user["address"]
-                    }
-
-                    with open(
-                        "orders.txt",
-                        "a",
-                        encoding="utf-8"
-                    ) as f:
-
-                        f.write(
-                            json.dumps(
-                                order,
-                                ensure_ascii=False
-                            ) + "\n"
-                        )
-
-                    telegram_text = f"""
-🛒 ახალი შეკვეთა
-
-პროდუქტი:
-{user['product']}
-
-სახელი:
-{user['name']}
-
-ტელეფონი:
-{user['phone']}
-
-მისამართი:
-{user['address']}
-"""
-
-                    send_telegram(telegram_text)
-
-                    send_message(
-                        sender_id,
-                        "✅ შეკვეთა მიღებულია.\n\n"
-                        "ჩვენი ოპერატორი მალე დაგიკავშირდებათ."
-                    )
-
-                    user_state.pop(sender_id, None)
-
-                elif "განსხვავ" in msg:
-
-                    send_message(
-                        sender_id,
-                        "280 ლარიანი მოდელი განკუთვნილია "
-                        "ჩვეულებრივი გამოყენებისთვის.\n\n"
-                        "380 ლარიანს აქვს უფრო ძლიერი "
-                        "და გამძლე ძრავი."
-                    )
-
-                else:
-
-                    send_message(
-                        sender_id,
-                        "გამარჯობა 👋\n\n"
-                        "სარბენი ბილიკის ფასებისთვის "
-                        "მომწერეთ:\n"
-                        "სარბენი ბილიკი"
+                    send_telegram(
+                        f"🛒 ახალი შეკვეთა\n\n{text}"
                     )
 
     except Exception as e:
