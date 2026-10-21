@@ -15,6 +15,8 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 CHAT_ID = "7937718581"
 
+user_history = {}
+
 def send_telegram(text):
     requests.post(
         f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
@@ -26,7 +28,7 @@ def send_telegram(text):
 
 def send_message(recipient_id, text):
 
-    url = f"https://graph.facebook.com/v23.0/me/messages"
+    url = "https://graph.facebook.com/v23.0/me/messages"
 
     requests.post(
         url,
@@ -38,9 +40,6 @@ def send_message(recipient_id, text):
             "message": {"text": text[:2000]}
         }
     )
-
-
-user_history = {}
 
 def ask_ai(user_id, message):
 
@@ -54,24 +53,33 @@ def ask_ai(user_id, message):
 
 ყოველთვის უპასუხე ქართულად.
 
-სარბენი ბილიკები:
+პროდუქტი:
+
+სარბენი ბილიკი
+
+ფასი:
 
 280 ლარი - სტანდარტული
 
-380 ლარი - ძლიერი ძრავით
+380 ლარი - ძლიერი და გამძლე ძრავით
 
-მიწოდება: 30 ლარი
+მიწოდება:
 
-ესაუბრე მოკლედ და ბუნებრივად.
+30 ლარი
 
-თუ მომხმარებელს შეძენა სურს,
-აიღე ეტაპობრივად:
+თუ კლიენტი ყიდვას აპირებს, ეტაპობრივად აიღე:
 
 1. სახელი და გვარი
 2. ტელეფონი
 3. მისამართი
 
-არ მოსთხოვო ყველაფერი ერთდროულად.
+არ მოსთხოვო ყველაფერი ერთად.
+
+ესაუბრე მოკლედ და ბუნებრივად.
+
+თუ შეკვეთა დასრულდა, პასუხის ბოლოს მიუწერე:
+
+ORDER_COMPLETE
 """
             }
         ]
@@ -98,9 +106,6 @@ def ask_ai(user_id, message):
     )
 
     return answer
-
-
-
 
 @app.route("/")
 def home():
@@ -136,7 +141,7 @@ def webhook():
 
                 text = messaging["message"].get("text", "")
 
-               reply = ask_ai(sender_id, text)
+                reply = ask_ai(sender_id, text)
 
                 send_message(
                     sender_id,
@@ -146,7 +151,7 @@ def webhook():
                 if "ORDER_COMPLETE" in reply:
 
                     send_telegram(
-                        f"🛒 ახალი შეკვეთა\n\n{text}"
+                        f"🛒 ახალი შეკვეთა\n\n{reply}"
                     )
 
     except Exception as e:
