@@ -39,49 +39,68 @@ def send_message(recipient_id, text):
         }
     )
 
-def ask_ai(message):
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
+user_history = {}
+
+def ask_ai(user_id, message):
+
+    if user_id not in user_history:
+
+        user_history[user_id] = [
             {
                 "role": "system",
                 "content": """
-შენ ხარ პროფესიონალი გამყიდველი.
+შენ ხარ პროფესიონალი ონლაინ მაღაზიის კონსულტანტი.
 
 ყოველთვის უპასუხე ქართულად.
 
-პროდუქტი:
-სარბენი ბილიკი
+სარბენი ბილიკები:
 
-ფასები:
-280 ლარი
-380 ლარი (უფრო ძლიერი ძრავით)
+280 ლარი - სტანდარტული
 
-მიწოდება:
-30 ლარი
+380 ლარი - ძლიერი ძრავით
 
-თუ კლიენტი ყიდვას აპირებს,
-აუღე:
+მიწოდება: 30 ლარი
 
-სახელი
-ტელეფონი
-მისამართი
+ესაუბრე მოკლედ და ბუნებრივად.
 
-როცა შეკვეთა დასრულდება,
-ბოლოში დაწერე:
+თუ მომხმარებელს შეძენა სურს,
+აიღე ეტაპობრივად:
 
-ORDER_COMPLETE
+1. სახელი და გვარი
+2. ტელეფონი
+3. მისამართი
+
+არ მოსთხოვო ყველაფერი ერთდროულად.
 """
-            },
-            {
-                "role": "user",
-                "content": message
             }
         ]
+
+    user_history[user_id].append(
+        {
+            "role": "user",
+            "content": message
+        }
     )
 
-    return response.choices[0].message.content
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=user_history[user_id]
+    )
+
+    answer = response.choices[0].message.content
+
+    user_history[user_id].append(
+        {
+            "role": "assistant",
+            "content": answer
+        }
+    )
+
+    return answer
+
+
+
 
 @app.route("/")
 def home():
