@@ -42,7 +42,7 @@ def send_message(recipient_id, text):
 def ask_ai(message):
 
     response = client.chat.completions.create(
-        model="gpt-5",
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "system",
